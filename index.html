@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+  <title>Buğday Oyunu</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="game-container">
+    <!-- Üst Bar -->
+    <div class="top-bar">
+      <div class="top-bar-item" id="money-bar">
+        <img src="15.png" alt="Para">
+        <span id="money-amount">2500</span>
+      </div>
+      <div class="top-bar-item" id="energy-bar">
+        <img src="14.png" alt="Enerji">
+        <span id="energy-amount">70</span>
+      </div>
+      <div class="top-bar-item" id="diamond-bar">
+        <img src="13.png" alt="Elmas">
+        <span id="diamond-amount">10</span>
+      </div>
+    </div>
+
+    <!-- Oyun Alanı -->
+    <div id="field-area"></div>
+
+    <!-- Animasyonlar -->
+    <div id="floating-animations"></div>
+
+    <!-- Alt Butonlar -->
+    <div class="bottom-buttons">
+      <button class="game-btn" id="depo-btn">
+        <img src="5.png" alt="Depo">
+        <span>Depo</span>
+      </button>
+      <button class="game-btn" id="magaza-btn">
+        <img src="6.png" alt="Mağaza">
+        <span>Mağaza</span>
+      </button>
+      <button class="game-btn" id="gorevler-btn">
+        <img src="7.png" alt="Görevler">
+        <span>Görevler</span>
+      </button>
+      <button class="game-btn" id="ayarlar-btn">
+        <img src="18.png" alt="Ayarlar">
+        <span>Ayarlar</span>
+      </button>
+    </div>
+    
+    <!-- Modal: Depo -->
+    <div id="modal-depo" class="modal">
+      <div class="modal-content">
+        <div class="modal-title">Depo</div>
+        <div id="depo-list"></div>
+        <button id="close-depo" class="modal-close">Kapat</button>
+      </div>
+    </div>
+    <!-- Modal: Mağaza -->
+    <div id="modal-magaza" class="modal">
+      <div class="modal-content">
+        <div class="modal-title">Mağaza</div>
+        <div id="magaza-list"></div>
+        <button id="close-magaza" class="modal-close">Kapat</button>
+      </div>
+    </div>
+  </div>
+  <script src="game.js"></script>
+</body>
+</html>
