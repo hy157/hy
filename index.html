@@ -2,87 +2,477 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
-  <title>Buğday Oyunu</title>
-  <link rel="stylesheet" href="style.css">
+  <title>Akıllı Çiftlik (Drag & Görevli)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    html,body {margin:0;padding:0;}
+    body {
+      min-height:100vh; min-width:100vw;
+      background: url(8.png) center/cover no-repeat;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      box-sizing: border-box;
+    }
+    #top-bar {
+      display: flex; align-items: center;
+      background:rgba(255,255,255,0.80); box-shadow:0 2px 10px #0001;
+      padding:10px 15px; border-bottom:2px solid #e5e5e5;
+      z-index:2; position:relative; gap:14px;
+      justify-content: flex-start;
+    }
+    #top-bar span, #top-bar img.icon {
+      display: flex; align-items:center; font-size:1.1em; font-weight:600;
+      background: #fff7; border-radius:18px; padding:2px 13px 2px 6px;
+      margin-right:3px;
+      border: 1.3px solid #bbb7;
+    }
+    #top-bar img.icon { width:28px; height:28px; margin-right:2px; background:none; padding:0; border:none;}
+    #main-content {display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:68vh;}
+    #slot-area {
+      margin-top:34px;
+      display: flex; flex-wrap: wrap;
+      gap: 22px 22px; justify-content: center; align-items: center;
+    }
+    .slot {
+      width: 170px; height: 130px; position:relative; display: flex; align-items:center; justify-content:center;
+      border: 2px dashed #c8d4b7;
+      background: transparent;
+      border-radius: 22px;
+      box-sizing: border-box;
+      transition: box-shadow .16s;
+      overflow: visible;
+    }
+    .slot.dragover {
+      border-color: #59c032;
+      background:rgba(200,255,186,0.16);
+      box-shadow:0 0 10px #77db7e80;
+    }
+    .slot .bina {
+      position:absolute; left:0; right:0; top:0; bottom:0; margin:auto;
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      z-index:1; cursor:grab;
+      user-select:none;
+      background:none;
+      border:none;
+      width:100%; height:100%;
+      transition:box-shadow .12s, opacity .15s;
+      opacity:1;
+    }
+    .bina.dragging {
+      opacity:0.7; box-shadow:0 6px 34px #00ab3d22;
+      z-index:33;
+    }
+    .bina-img {
+      width:120px; height:88px; object-fit:contain; display:block; background:none; border-radius:13px;
+      border:none;
+    }
+    .bina .actions {
+      display:flex; gap:9px; margin-top:2px;
+      align-items:center; justify-content:center;
+    }
+    .action-btn { width:29px; height:29px; cursor:pointer; opacity:0.97; transition:opacity .13s;}
+    .action-btn:active {opacity:1;}
+    .timer {text-align:center; margin:2px 0 0 0; font-size:.96em; min-height:18px; color:#444;}
+    .timer img {width:16px; vertical-align:middle; margin-right:1px;}
+    small {font-size:0.91em; color:#666;}
+    #bottom-bar {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: rgba(255,255,255,0.95); box-shadow: 0 -1px 12px #0001;
+      padding: 7px 0 5px 0; z-index:10;
+      display:flex; justify-content:center; gap:24px; align-items:center;
+    }
+    #bottom-bar .bbtn {
+      background:none; border:none; outline:none;
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      cursor:pointer; padding:6px 12px; transition:background .15s, transform .13s;
+      border-radius:14px;
+      font-size:1em; font-weight:600; color:#296010;
+    }
+    #bottom-bar .bbtn:active { background:#d8f3e7; transform:scale(0.97);}
+    #bottom-bar img { width:28px; height:28px; }
+    #bottom-bar span { font-size:0.95em; margin-top:1px;}
+    .modal-bg {
+      position:fixed; top:0;left:0;right:0;bottom:0;
+      background:rgba(0,0,0,0.21); display:none; justify-content:center; align-items:center; z-index:999;
+    }
+    .modal {
+      background:#fff; border-radius:18px; box-shadow:0 8px 32px #0003; min-width:240px;
+      max-width:97vw; padding:19px 14px 13px 14px; text-align:center; position:relative;
+      animation:popin .18s;
+    }
+    .modal img {width:41px; margin-bottom:7px;}
+    .closeBtn {
+      position:absolute; top:5px; right:11px; background:none; border:none; font-size:1.13em; color:#234;
+      cursor:pointer; font-weight:800;
+    }
+    .magaza-list { display: flex; flex-direction: column; gap: 13px; align-items:center;}
+    .magaza-item {
+      display: flex; align-items: center; gap:10px; padding:7px 0;
+      border-bottom:1px solid #eee;
+      width:100%; max-width:330px; justify-content:space-between;
+    }
+    .magaza-item:last-child { border-bottom: none; }
+    .magaza-item img {width:33px;}
+    .magaza-item button {
+      background: #f8ffe8; border:1px solid #b9dfa8; color:#225f13;
+      border-radius:9px; padding:5px 13px; font-weight:700; font-size:1em;
+      cursor:pointer; transition:background .15s;
+    }
+    .magaza-item button:active {background:#d8f3e7;}
+    .depo-list {margin-top:10px; display:flex; flex-direction:column; gap:7px;}
+    .depo-item { display:flex; align-items:center; gap:10px; justify-content:space-between; border-bottom:1px solid #f3f3f3; padding:3px 0;}
+    .depo-item:last-child {border-bottom:none;}
+    .depo-item img {width:20px;}
+    .depo-item button {
+      background:#fff5d8; border:1px solid #f6e6ba; color:#805a17;
+      border-radius:8px; font-size:0.98em; padding:2px 9px; cursor:pointer; font-weight:600;
+    }
+    .depo-item button:active {background:#e8f5d8;}
+    .well-panel {
+      margin-top:8px; background:#f8fff7; border-radius:10px; padding:9px; border:1px solid #cdf1ea; display:inline-block;
+    }
+    .well-panel img {vertical-align:middle;}
+    .well-panel button {
+      background:#e2fff8; border:1px solid #b9e1d8; color:#247a63;
+      border-radius:9px; padding:5px 14px; margin-left:7px; font-size:0.97em; font-weight:600; cursor:pointer;
+    }
+    .well-panel button:active {background:#cdf5e8;}
+    .gorevler-list {margin-top:9px;}
+    .gorev-kutu {
+      border-radius:8px; background:#f8fff7; border:1px solid #cfe8bb;
+      margin:0 0 8px 0; padding:8px 14px; display:flex; align-items:center; gap:7px;
+      justify-content:space-between; font-size:0.97em;
+    }
+    .gorev-done { color:#24a73e; font-weight:700;}
+    .gorev-buton {
+      background:#f3ffe8; border:1px solid #c5ebad; color:#217b0f;
+      border-radius:7px; font-size:0.99em; padding:2px 8px; cursor:pointer; font-weight:600;
+    }
+    .gorev-buton:active {background:#e8f5d8;}
+    #gorevOdul {margin-top:12px;}
+    @keyframes popin {0%{transform:scale(.83); opacity:0;} 100%{transform:scale(1); opacity:1;}}
+    @media (max-width:600px){
+      #slot-area { gap: 13px 8px;}
+      .slot { width: 96vw; max-width:175px; min-width:85px; height:110px;}
+      .bina-img { width:87vw; max-width:110px; height:59vw; max-height:70px;}
+      .modal { padding:7px 2vw;}
+      .magaza-item {max-width:97vw;}
+    }
+    body {padding-bottom:70px;}
+  </style>
 </head>
 <body>
-  <div id="game-container">
-    <!-- Üst Bar -->
-    <div class="top-bar">
-      <div class="top-bar-item" id="money-bar">
-        <img src="15.png" alt="Para">
-        <span id="money-amount">2500</span>
-      </div>
-      <div class="top-bar-item" id="energy-bar">
-        <img src="14.png" alt="Enerji">
-        <span id="energy-amount">70</span>
-      </div>
-      <div class="top-bar-item" id="diamond-bar">
-        <img src="13.png" alt="Elmas">
-        <span id="diamond-amount">10</span>
-      </div>
-    </div>
-
-    <!-- Oyun Alanı -->
-    <div id="field-area"></div>
-
-    <!-- Animasyonlar -->
-    <div id="floating-animations"></div>
-
-    <!-- Alt Butonlar -->
-    <div class="bottom-buttons">
-      <button class="game-btn" id="depo-btn">
-        <img src="5.png" alt="Depo">
-        <span>Depo</span>
-      </button>
-      <button class="game-btn" id="magaza-btn">
-        <img src="6.png" alt="Mağaza">
-        <span>Mağaza</span>
-      </button>
-      <button class="game-btn" id="gorevler-btn">
-        <img src="7.png" alt="Görevler">
-        <span>Görevler</span>
-      </button>
-      <button class="game-btn" id="ayarlar-btn">
-        <img src="18.png" alt="Ayarlar">
-        <span>Ayarlar</span>
-      </button>
-    </div>
-    
-    <!-- Modal: Depo -->
-    <div id="modal-depo" class="modal">
-      <div class="modal-content">
-        <div class="modal-title">Depo</div>
-        <div id="depo-list"></div>
-        <button id="close-depo" class="modal-close">Kapat</button>
-      </div>
-    </div>
-    <!-- Modal: Mağaza -->
-    <div id="modal-magaza" class="modal">
-      <div class="modal-content">
-        <div class="modal-title">Mağaza</div>
-        <div id="magaza-list"></div>
-        <button id="close-magaza" class="modal-close">Kapat</button>
-      </div>
+  <div id="top-bar">
+    <span><img src="15.png" class="icon" alt="Para"> <b id="coin">100</b></span>
+    <span><img src="14.png" class="icon" alt="Enerji"> <b id="energy">100</b></span>
+    <span><img src="13.png" class="icon" alt="Elmas"> <b id="gem">100</b></span>
+  </div>
+  <div id="main-content">
+    <div id="slot-area"></div>
+  </div>
+  <div id="bottom-bar">
+    <button class="bbtn" id="depoBtn"><img src="5.png"><span>Depo</span></button>
+    <button class="bbtn" id="magazaBtn"><img src="6.png"><span>Mağaza</span></button>
+    <button class="bbtn" id="gorevBtn"><img src="7.png"><span>Görevler</span></button>
+    <button class="bbtn" id="ayarBtn"><img src="18.png"><span>Ayarlar</span></button>
+  </div>
+  <div id="modalbg" class="modal-bg">
+    <div class="modal" id="modalBox">
+      <button class="closeBtn" onclick="modalKapat()">×</button>
+      <div id="modalContent"></div>
     </div>
   </div>
-  <script src="game.js"></script>
- <script>
-  // ... (tüm önceki kod aynı, yalnızca satinal fonksiyonu aşağıdaki gibi olmalı)
-  window.satinal = function(ne) {
-    let fiyat = { "tarla":10, "firin":40, "degirmen":30, "sukuyusu":20 }[ne];
-    if(durum.coin < fiyat) { alert("Yeterli paran yok!"); return; }
-    durum.coin -= fiyat;
-    let idx = durum.slotlar.findIndex(x=>x===null);
-    if(idx<0){ alert("Daha fazla alan yok!"); return; }
-    if(ne==="tarla") durum.slotlar[idx]={type:"tarla", durum:"empty", time:0, crop:null};
-    if(ne==="firin") durum.slotlar[idx]={type:"firin"};
-    if(ne==="degirmen") durum.slotlar[idx]={type:"degirmen"};
-    if(ne==="sukuyusu") durum.slotlar[idx]={type:"sukuyusu"};
-    updateBar(); renderSlots(); modalKapat();
-  }
-  // ... (tüm önceki kodun devamı aynı)
-</script> 
+  <script>
+    // ---- OYUN DEĞİŞKENLERİ
+    let durum = {
+      coin: 100, energy: 100, gem: 100, depot: {},
+      slotlar: [null,null,null,null,null,null,null,null,null],
+      suKuyusu: { su:0, last:Date.now() },
+      gorev: { hasat:0, ekmek:0, su:0, odulAldi:false }
+    };
+    let urunler = [
+      { ad:"Buğday", key:"bugday", sprite:"21.png", grow:30, fiyat:5 }
+    ];
+    durum.slotlar[0] = {type:"tarla", durum:"empty", time:0, crop:null};
+    function updateBar(){
+      document.getElementById("coin").innerText = durum.coin;
+      document.getElementById("energy").innerText = durum.energy;
+      document.getElementById("gem").innerText = durum.gem;
+    }
+    function renderSlots(){
+      let alan = document.getElementById("slot-area"); alan.innerHTML = "";
+      durum.slotlar.forEach((s, i)=>{
+        alan.innerHTML += `
+        <div class="slot" data-slot="${i}">
+          ${s ? binaHtml(s,i) : ""}
+        </div>`;
+      });
+      Array.from(document.querySelectorAll(".bina")).forEach(el=>{
+        el.ondragstart = e => {e.preventDefault();};
+        dragHandler(el);
+      });
+    }
+    let dragObj = null, dragIdx = null;
+    function dragHandler(el){
+      let t0, moved=false, slotIndex = +el.dataset.idx;
+      el.onmousedown = el.ontouchstart = function(ev){
+        t0 = Date.now(); moved=false;
+        let timeout = setTimeout(()=>{
+          dragObj = el; dragIdx=slotIndex;
+          el.classList.add("dragging");
+          document.body.style.cursor="grabbing";
+        },250);
+        function move(e){
+          if(dragObj){
+            moved = true;
+            let touch = e.touches?e.touches[0]:e;
+            dragObj.style.position="fixed";
+            dragObj.style.pointerEvents="none";
+            dragObj.style.left = (touch.clientX-80)+"px";
+            dragObj.style.top  = (touch.clientY-40)+"px";
+          }
+        }
+        function up(e){
+          clearTimeout(timeout);
+          if(dragObj){
+            dragObj.classList.remove("dragging");
+            dragObj.style.position="";
+            dragObj.style.left=dragObj.style.top="";
+            document.body.style.cursor="";
+            let elem = document.elementFromPoint(
+              (e.changedTouches?e.changedTouches[0]:e).clientX,
+              (e.changedTouches?e.changedTouches[0]:e).clientY
+            );
+            let slotDiv = elem.closest(".slot");
+            if(slotDiv){
+              let target = +slotDiv.dataset.slot;
+              let temp = durum.slotlar[target];
+              durum.slotlar[target]=durum.slotlar[dragIdx];
+              durum.slotlar[dragIdx]=temp;
+              renderSlots();
+            }
+            dragObj=null;
+          }
+          window.removeEventListener("mousemove",move);
+          window.removeEventListener("touchmove",move);
+          window.removeEventListener("mouseup",up);
+          window.removeEventListener("touchend",up);
+        }
+        window.addEventListener("mousemove",move);
+        window.addEventListener("touchmove",move);
+        window.addEventListener("mouseup",up);
+        window.addEventListener("touchend",up);
+      }
+    }
+    function binaHtml(s,idx){
+      if(s.type==="tarla"){
+        let img = "1.png";
+        if(s.durum==="growing") img = (s.time<15)?"2.png":"3.png";
+        if(s.durum==="ready") img="4.png";
+        let action = "";
+        if(s.durum==="empty")
+          action = `<img src="17.png" class="action-btn" onclick="tarlaEkim(${idx})" title="Tohum ek">`;
+        if(s.durum==="ready")
+          action = `<img src="19.png" class="action-btn" onclick="tarlaHasat(${idx})" title="Hasat et">`;
+        return `<div class="bina" data-idx="${idx}">
+          <img src="${img}" class="bina-img">
+          <div class="actions">${action}</div>
+          <div class="timer">${
+            s.durum==="growing"?`<img src="21.png"> <small>${30-s.time}s</small>`:""
+          }${s.durum==="ready"?`<img src="21.png"> <small>Hazır!</small>`:""}</div>
+        </div>`;
+      }
+      if(s.type==="firin"){
+        return `<div class="bina" data-idx="${idx}">
+          <img src="22.png" class="bina-img">
+          <div class="actions"><img src="10.png" class="action-btn" onclick="firinPanel()" title="Ekmek üret"></div>
+        </div>`;
+      }
+      if(s.type==="degirmen"){
+        return `<div class="bina" data-idx="${idx}">
+          <img src="24.png" class="bina-img">
+          <div class="actions"><img src="11.png" class="action-btn" onclick="degirmenPanel()" title="Un üret"></div>
+        </div>`;
+      }
+      if(s.type==="sukuyusu"){
+        return `<div class="bina" data-idx="${idx}">
+          <img src="23.png" class="bina-img">
+          <div class="actions"><img src="20.png" class="action-btn" onclick="wellPanel()" title="Su toplama"></div>
+        </div>`;
+      }
+    }
+    window.tarlaEkim = function(idx){
+      if(durum.energy<1) return alert("Yeterli enerji yok!");
+      durum.energy -= 1;
+      durum.slotlar[idx] = {type:"tarla", durum:"growing", time:0, crop:"bugday"};
+      updateBar(); renderSlots();
+    }
+    window.tarlaHasat = function(idx){
+      durum.slotlar[idx] = {type:"tarla", durum:"empty", time:0, crop:null};
+      durum.depot["Buğday"]=(durum.depot["Buğday"]||0)+1;
+      durum.gorev.hasat++;
+      updateBar(); renderSlots();
+      checkGorev();
+    }
+    window.wellPanel = function(){
+      let su = durum.suKuyusu.su;
+      let buton = `<button ${su==0?"disabled":""} onclick="suTopla()">Su Topla</button>`;
+      let info = `<div class='well-panel'><img src='23.png'> <b>Su Kuyusu</b> <br>
+      <small>Biriken Su: <b>${su}/10</b> (30sn'de 1 su)</small><br>${buton}</div>`;
+      modalGoster(info);
+    }
+    window.suTopla = function(){
+      let su = durum.suKuyusu.su;
+      if(su>0){
+        durum.depot["Su"] = (durum.depot["Su"]||0) + su;
+        durum.gorev.su += su;
+        durum.suKuyusu.su = 0;
+        wellPanel();
+        checkGorev();
+      }
+    }
+    window.degirmenPanel = function(){
+      let bugday = durum.depot["Buğday"]||0, un = durum.depot["Un"]||0;
+      let buton = `<button ${(bugday<1||durum.energy<1)?"disabled":""} onclick="unUret()">Un Üret (1 <img src='21.png'>, 1 <img src='14.png'>)</button>`;
+      let info = `<div style='padding:7px;'><img src='24.png'> <b>Değirmen</b><br>
+      <small>1 Buğday + 1 Enerji = 1 Un</small><br>${buton}<br>
+      Depo: <img src='21.png'>${bugday} <img src='12.png'>${un}</div>`;
+      modalGoster(info);
+    }
+    window.unUret = function(){
+      if((durum.depot["Buğday"]||0)<1||durum.energy<1) return;
+      durum.depot["Buğday"]-=1;
+      durum.depot["Un"] = (durum.depot["Un"]||0)+1;
+      durum.energy -= 1;
+      degirmenPanel(); updateBar();
+      checkGorev();
+    }
+    window.firinPanel = function(){
+      let un = durum.depot["Un"]||0, su = durum.depot["Su"]||0, ekmek = durum.depot["Ekmek"]||0;
+      let buton = `<button ${(un<1||su<1||durum.energy<1)?"disabled":""} onclick="ekmekUret()">Ekmek Üret (1 <img src='12.png'> 1 <img src='20.png'> 1 <img src='14.png'>)</button>`;
+      let info = `<div style='padding:7px;'><img src='22.png'> <b>Fırın</b><br>
+      <small>1 Un + 1 Su + 1 Enerji = 1 Ekmek</small><br>${buton}<br>
+      Depo: <img src='12.png'>${un} <img src='20.png'>${su} <img src='9.png'>${ekmek}</div>`;
+      modalGoster(info);
+    }
+    window.ekmekUret = function(){
+      if((durum.depot["Un"]||0)<1||(durum.depot["Su"]||0)<1||durum.energy<1) return;
+      durum.depot["Un"]-=1; durum.depot["Su"]-=1;
+      durum.depot["Ekmek"]=(durum.depot["Ekmek"]||0)+1;
+      durum.energy -= 1;
+      durum.gorev.ekmek++;
+      firinPanel(); updateBar();
+      checkGorev();
+    }
+    document.getElementById("magazaBtn").onclick = function() {
+      let magazaHTML = `
+      <div class="magaza-list">
+        <div class="magaza-item">
+          <img src="1.png"><b>Tarla</b>
+          <button onclick="satinal('tarla')">10 <img src='15.png' style='width:14px;vertical-align:middle'></button>
+        </div>
+        <div class="magaza-item">
+          <img src="22.png"><b>Fırın</b>
+          <button onclick="satinal('firin')">40 <img src='15.png' style='width:14px;vertical-align:middle'></button>
+        </div>
+        <div class="magaza-item">
+          <img src="24.png"><b>Değirmen</b>
+          <button onclick="satinal('degirmen')">30 <img src='15.png' style='width:14px;vertical-align:middle'></button>
+        </div>
+        <div class="magaza-item">
+          <img src="23.png"><b>Su Kuyusu</b>
+          <button onclick="satinal('sukuyusu')">20 <img src='15.png' style='width:14px;vertical-align:middle'></button>
+        </div>
+      </div>`;
+      modalGoster("<h3>Mağaza</h3>" + magazaHTML);
+    };
+    window.satinal = function(ne) {
+      let fiyat = { "tarla":10, "firin":40, "degirmen":30, "sukuyusu":20 }[ne];
+      if(durum.coin < fiyat) { alert("Yeterli paran yok!"); return; }
+      durum.coin -= fiyat;
+      let idx = durum.slotlar.findIndex(x=>x===null);
+      if(idx<0){ alert("Daha fazla alan yok!"); return; }
+      if(ne==="tarla") durum.slotlar[idx]={type:"tarla", durum:"empty", time:0, crop:null};
+      if(ne==="firin") durum.slotlar[idx]={type:"firin"};
+      if(ne==="degirmen") durum.slotlar[idx]={type:"degirmen"};
+      if(ne==="sukuyusu") durum.slotlar[idx]={type:"sukuyusu"};
+      updateBar(); renderSlots(); modalKapat();
+    }
+    document.getElementById("depoBtn").onclick = function() {
+      let depoHTML = `<h3>Depo</h3><div class="depo-list">`;
+      let dep = durum.depot;
+      let satF = function(ad,fiyat){
+        return `<button onclick="urunSat('${ad}',${fiyat})">Sat (${fiyat} <img src='15.png' style='width:13px;vertical-align:middle'>)</button>`;
+      };
+      let varMi = false;
+      Object.keys(dep).forEach(ad=>{
+        if(dep[ad]>0){
+          varMi=true;
+          let spr = (ad=="Buğday"?"21.png":ad=="Un"?"12.png":ad=="Ekmek"?"9.png":ad=="Su"?"20.png":"");
+          let fiyat = ad=="Buğday"?5:ad=="Un"?18:ad=="Ekmek"?35:ad=="Su"?3:1;
+          depoHTML += `<div class="depo-item"><img src="${spr}">${ad} <b>x${dep[ad]}</b> ${satF(ad,fiyat)}</div>`;
+        }
+      });
+      if(!varMi) depoHTML += `<div style="opacity:.75; font-size:.98em;">Depo boş</div>`;
+      depoHTML += "</div>";
+      modalGoster(depoHTML);
+    };
+    window.urunSat = function(ad,fiyat){
+      if(!durum.depot[ad]||durum.depot[ad]<1) return;
+      durum.depot[ad]-=1;
+      durum.coin+=fiyat;
+      updateBar();
+      document.getElementById("depoBtn").click();
+      if(ad=="Su") durum.gorev.su++; // görev sayacı
+      checkGorev();
+    }
+    document.getElementById("gorevBtn").onclick = function(){
+      let g = durum.gorev, bitti = g.hasat>=3 && g.ekmek>=2 && g.su>=5 && !g.odulAldi;
+      let gorevHTML = `<h3>Görevler</h3>
+      <div class="gorevler-list">
+        <div class="gorev-kutu">${g.hasat>=3?'<span class="gorev-done">✓</span>':'🟩'} 3 kez hasat yap (${g.hasat}/3)</div>
+        <div class="gorev-kutu">${g.ekmek>=2?'<span class="gorev-done">✓</span>':'🟩'} 2 ekmek üret (${g.ekmek}/2)</div>
+        <div class="gorev-kutu">${g.su>=5?'<span class="gorev-done">✓</span>':'🟩'} 5 su sat (${g.su}/5)</div>
+      </div>
+      ${bitti?`<button class="gorev-buton" id="gorevOdul">200 <img src='15.png' style='width:13px;vertical-align:middle'> Ödülü Al</button>`:""}
+      `;
+      modalGoster(gorevHTML);
+      if(bitti){
+        document.getElementById("gorevOdul").onclick = function(){
+          durum.coin+=200; durum.gorev.odulAldi=true; updateBar(); modalKapat();
+        }
+      }
+    }
+    document.getElementById("ayarBtn").onclick = ()=>modalGoster("<img src='18.png'><h3>Ayarlar</h3><div>Ayarlar yakında aktif olacak.</div>");
+    setInterval(function(){
+      let idx = durum.slotlar.findIndex(s=>s && s.type==="sukuyusu");
+      if(idx>=0){
+        let now = Date.now();
+        let delta = Math.floor((now - durum.suKuyusu.last)/1000);
+        if(delta >= 30 && durum.suKuyusu.su < 10) {
+          let ekle = Math.min(Math.floor(delta/30), 10-durum.suKuyusu.su);
+          durum.suKuyusu.su += ekle;
+          durum.suKuyusu.last = now - ((delta%30)*1000);
+        }
+      }
+    },1000);
+    setInterval(function(){
+      durum.slotlar.forEach((s,i)=>{
+        if(s && s.type=="tarla" && s.durum=="growing"){
+          s.time+=1;
+          if(s.time>=30){ s.durum="ready"; }
+        }
+      });
+      renderSlots();
+    },1000);
+    function checkGorev(){ }
+    renderSlots(); updateBar();
+    function modalGoster(html) {
+      document.getElementById("modalContent").innerHTML = html;
+      document.getElementById("modalbg").style.display="flex";
+    }
+    function modalKapat() {
+      document.getElementById("modalbg").style.display="none";
+    }
+  </script>
 </body>
 </html>
