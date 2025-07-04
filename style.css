@@ -20,6 +20,7 @@ body {
   flex-direction: column;
   justify-content: flex-end;
   align-items: center;
+  touch-action: none;
 }
 
 /* Üst Bar */
@@ -66,70 +67,122 @@ body {
 /* Oyun Alanı */
 #field-area {
   flex: 1 1 auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: block;
   position: relative;
   width: 100vw;
   z-index: 5;
+  min-height: 300px;
   overflow: visible;
 }
 
-.field-container {
+/* Tarla ve Binalar (büyük boyut) */
+.field-container, .building-container {
   position: absolute;
-  width: 120px;
-  height: 120px;
+  width: 220px;
+  height: 220px;
   user-select: none;
   touch-action: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 20;
 }
 
-.field-img {
-  width: 100%;
-  height: 100%;
+.field-img, .building-img {
+  width: 92%;
+  height: 92%;
   object-fit: contain;
   cursor: pointer;
-  transition: box-shadow 0.2s;
-  box-shadow: 0 2px 18px 0 rgba(255,209,41,0.08);
   border-radius: 18px;
   background: rgba(255,255,255,0.04);
+  box-shadow: 0 2px 18px 0 rgba(255,209,41,0.08);
+  transition: box-shadow 0.2s, opacity 0.2s;
 }
 
-.field-container.dragging .field-img {
+.field-container.dragging .field-img,
+.building-container.dragging .building-img {
   opacity: 0.7;
-  box-shadow: 0 0 25px 3px #ffc800;
+  box-shadow: 0 0 32px 5px #ffc800;
 }
 
 .action-icons {
   position: absolute;
-  top: 2px;
-  left: 2px;
+  top: 4px;
+  left: 4px;
   display: flex;
-  gap: 4px;
-  z-index: 2;
+  gap: 12px;
+  z-index: 22;
 }
 
 .action-icons button {
-  background: rgba(255,255,255,0.95);
+  background: none;
   border: none;
-  border-radius: 8px;
-  padding: 3px 3px 1px 3px;
+  border-radius: 10px;
+  padding: 2px;
   cursor: pointer;
   margin-right: 2px;
-  box-shadow: 0 2px 8px 0 rgba(0,0,0,0.09);
   transition: transform 0.1s;
   outline: none;
 }
 
 .action-icons button:active {
-  transform: scale(0.94);
+  transform: scale(0.92);
 }
 
 .action-icons img {
-  width: 22px;
-  height: 22px;
+  width: 54px;
+  height: 54px;
+  background: none !important;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  object-fit: contain;
+  image-rendering: auto;
 }
 
-/* Animasyonlar */
+.price-tag {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 24;
+  background: #fffbe9;
+  border: 2px solid #f2c340;
+  color: #603800;
+  font-size: 23px;
+  font-weight: 700;
+  border-radius: 13px;
+  padding: 5px 22px;
+  box-shadow: 0 1px 10px #dab6317a;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  animation: fadeInPrice .34s;
+}
+@keyframes fadeInPrice {0%{opacity:0;}100%{opacity:1;}}
+
+.price-buy-btn {
+  background: #52b563;
+  color: #fff;
+  border: none;
+  border-radius: 9px;
+  padding: 6px 21px;
+  font-size: 17px;
+  font-weight: 700;
+  margin-left: 12px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.price-buy-btn:active { background: #468d4d; }
+
+.grayscale {
+  filter: grayscale(1) brightness(0.75) contrast(1.1) opacity(0.7);
+}
+
+.owned {
+  filter: none !important;
+}
+
 #floating-animations {
   position: fixed;
   pointer-events: none;
@@ -152,8 +205,8 @@ body {
   gap: 4px;
 }
 .floating-anim img {
-  width: 22px;
-  height: 22px;
+  width: 26px;
+  height: 26px;
   vertical-align: middle;
 }
 
@@ -165,13 +218,17 @@ body {
 
 /* ALT BUTONLAR */
 .bottom-buttons {
+  position: fixed;
+  bottom: 0;
+  left: 0;
   width: 100vw;
   display: flex;
   justify-content: space-around;
   align-items: center;
-  padding: 12px 0 32px 0;
-  background: rgba(255,255,255,0.05);
+  padding: 12px 0 28px 0;
+  background: linear-gradient(to top, #fffbe9b0 80%, #fff0 100%);
   box-sizing: border-box;
+  z-index: 40;
 }
 
 .game-btn {
