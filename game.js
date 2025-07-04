@@ -48,18 +48,18 @@ function showAnim(type, amount, icon) {
 
 // Field Spawner
 function randomFieldPos() {
-  const pad = 22;
+  const pad = 8;
   const area = document.getElementById("field-area");
   const w = area.offsetWidth || window.innerWidth;
-  const h = area.offsetHeight || (window.innerHeight-200);
+  const h = area.offsetHeight || (window.innerHeight-120);
   let tries = 16;
   while (tries--) {
-    let x = pad + Math.random() * (w-240-pad);
-    let y = 36 + Math.random() * (h-270-pad);
-    let clash = fields.concat(buildings).some(f => f.x!==null && Math.abs(f.x-x) < 160 && Math.abs(f.y-y) < 160);
+    let x = pad + Math.random() * (w-160-pad);
+    let y = 18 + Math.random() * (h-170-pad);
+    let clash = fields.concat(buildings).some(f => f.x!==null && Math.abs(f.x-x) < 120 && Math.abs(f.y-y) < 120);
     if (!clash) return {x, y};
   }
-  return {x: pad+Math.random()*(w-220-pad), y: 40+Math.random()*(h-200-pad)};
+  return {x: pad+Math.random()*(w-150-pad), y: 30+Math.random()*(h-130-pad)};
 }
 
 // Tarla oluşturma
