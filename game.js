@@ -1,4 +1,4 @@
-// Stoklar
+// Stoklar ve binalar için resim linki kısa tutmak için
 const PRODUCT_LIST = [
   {id:"wheat", name:"Buğday",    img:"21.png", sell:5},
   {id:"flour", name:"Un",        img:"12.png", sell:10},
@@ -7,20 +7,18 @@ const PRODUCT_LIST = [
   {id:"bretzel", name:"Bretzel", img:"11.png", sell:60},
   {id:"cookie", name:"Cookie",   img:"10.png", sell:100}
 ];
-let depot = {
-  wheat: 0, flour:0, water:0, bread:0, bretzel:0, cookie:0
-};
+let depot = { wheat: 0, flour:0, water:0, bread:0, bretzel:0, cookie:0 };
 let energy = 70;
 let money = 2500;
 let diamonds = 10;
 
-// Tarlalar ve binalar (yeni: büyük ve aynı mantıkta, draggable)
+// Tarlalar ve binalar (bina iconları başta siyah beyaz!)
 let fields = [];
 const FIELD_MAX = 4;
 let buildings = [
-  {id: "well", name:"Su Kuyusu", img: "23.png", color: "23.png", gray:"23.png", price:100, owned:false, x:null, y:null},
-  {id: "mill", name:"Değirmen",  img: "24.png", color: "24.png", gray:"24.png", price:150, owned:false, x:null, y:null},
-  {id: "oven", name:"Fırın",     img: "22.png", color: "22.png", gray:"22.png", price:200, owned:false, x:null, y:null}
+  {id: "well", name:"Su Kuyusu", img: "23.png", color: "23.png", gray:"23.png", price:100, owned:false, x:null, y:null, container:null},
+  {id: "mill", name:"Değirmen",  img: "24.png", color: "24.png", gray:"24.png", price:150, owned:false, x:null, y:null, container:null},
+  {id: "oven", name:"Fırın",     img: "22.png", color: "22.png", gray:"22.png", price:200, owned:false, x:null, y:null, container:null}
 ];
 
 // Üst bar güncelle
@@ -40,29 +38,28 @@ function showAnim(type, amount, icon) {
   const animDiv = document.createElement("div");
   animDiv.className = "floating-anim";
   animDiv.innerHTML = `<img src="${icon}" alt="">${amount > 0 ? "+" : ""}${amount}`;
-  // Ortada ya da üst bar altında göster
   let x = window.innerWidth / 2 - 30 + Math.random()*15;
-  let y = 110 + Math.random()*32;
+  let y = 120 + Math.random()*24;
   animDiv.style.left = `${x}px`;
   animDiv.style.top = `${y}px`;
   document.getElementById("floating-animations").appendChild(animDiv);
   setTimeout(() => animDiv.remove(), 1100);
 }
 
-// Field Spawner (büyük objeler için mesafe büyük tutuldu)
+// Field Spawner
 function randomFieldPos() {
-  const pad = 18;
+  const pad = 22;
   const area = document.getElementById("field-area");
   const w = area.offsetWidth || window.innerWidth;
-  const h = area.offsetHeight || (window.innerHeight-180);
-  let tries = 14;
+  const h = area.offsetHeight || (window.innerHeight-200);
+  let tries = 16;
   while (tries--) {
     let x = pad + Math.random() * (w-240-pad);
     let y = 36 + Math.random() * (h-270-pad);
-    let clash = fields.concat(buildings).some(f => f.x!==null && Math.abs(f.x-x) < 170 && Math.abs(f.y-y) < 170);
+    let clash = fields.concat(buildings).some(f => f.x!==null && Math.abs(f.x-x) < 160 && Math.abs(f.y-y) < 160);
     if (!clash) return {x, y};
   }
-  return {x: pad+Math.random()*(w-230-pad), y: 40+Math.random()*(h-240-pad)};
+  return {x: pad+Math.random()*(w-220-pad), y: 40+Math.random()*(h-200-pad)};
 }
 
 // Tarla oluşturma
@@ -89,10 +86,9 @@ function createField(initPos) {
   const act = document.createElement("div");
   act.className = "action-icons";
   act.style.display = "none";
-  // Tohum (saydam, büyük)
+  // Tohum ve orak (saydam, büyük)
   const seedBtn = document.createElement("button");
   seedBtn.innerHTML = `<img src="17.png" alt="Tohum" draggable="false">`;
-  // Orak (saydam, büyük)
   const sickleBtn = document.createElement("button");
   sickleBtn.innerHTML = `<img src="19.png" alt="Orak" draggable="false">`;
   act.appendChild(seedBtn);
@@ -111,7 +107,7 @@ function createField(initPos) {
       let clientY = e.touches ? e.touches[0].clientY : e.clientY;
       dragOffset.x = clientX - rect.left;
       dragOffset.y = clientY - rect.top;
-    }, 330);
+    }, 320);
   }
   function onPointerMove(e) {
     if (!isDragging) return;
@@ -148,7 +144,7 @@ function createField(initPos) {
   function showActions() {
     if(field.state==="growing"||field.state==="growing2") return;
     act.style.display="flex";
-    setTimeout(()=>{act.style.display="none";}, 3900);
+    setTimeout(()=>{act.style.display="none";}, 3800);
   }
   img.addEventListener("click", showActions);
   img.addEventListener("touchend", function(e){
@@ -201,8 +197,7 @@ function createField(initPos) {
 
 // Bina oluşturma (değirmen, su kuyusu, fırın)
 function createBuilding(build) {
-  // zaten eklendiyse tekrar ekleme
-  if(build.container) return;
+  if(build.container) return build;
   const area = document.getElementById("field-area");
   let b = build;
   let {x, y} = b.x!=null && b.y!=null ? b : randomFieldPos();
@@ -225,7 +220,7 @@ function createBuilding(build) {
     if(priceTag) priceTag.remove();
     priceTag = document.createElement("div");
     priceTag.className = "price-tag";
-    priceTag.innerHTML = `${b.price} <img src="15.png" style="width:30px;height:30px;margin-left:3px;"> 
+    priceTag.innerHTML = `${b.price} <img src="15.png" style="width:30px;height:30px;margin-left:3px;">
       <button class="price-buy-btn">Satın Al</button>`;
     priceTag.querySelector("button").onclick = function(e){
       e.stopPropagation();
@@ -252,7 +247,7 @@ function createBuilding(build) {
       let clientY = e.touches ? e.touches[0].clientY : e.clientY;
       dragOffset.x = clientX - rect.left;
       dragOffset.y = clientY - rect.top;
-    }, 320);
+    }, 310);
   }
   function onPointerMove(e) {
     if (!isDragging) return;
@@ -302,9 +297,10 @@ function createBuilding(build) {
 
 // Alanı temizle ve tarlaları + binaları göster
 function renderFields() {
-  document.getElementById("field-area").innerHTML = "";
+  let area = document.getElementById("field-area");
+  area.innerHTML = "";
   buildings.forEach(b=>createBuilding(b));
-  fields.forEach(f=>document.getElementById("field-area").appendChild(f.container));
+  fields.forEach(f=>area.appendChild(f.container));
 }
 
 // MODAL LOGIC (Depo)
@@ -329,7 +325,6 @@ function updateDepotUI(){
   });
   if(depoList.innerHTML==="") depoList.innerHTML = "<div>Depoda ürün yok.</div>";
 }
-// MODAL Depo aç/kapat
 document.getElementById("depo-btn").onclick = () => {
   updateDepotUI();
   document.getElementById("modal-depo").style.display="flex";
@@ -366,7 +361,6 @@ function updateMagazaUI(){
     magazaList.innerHTML = "<div>En fazla 4 tarla sahibi olabilirsin!</div>";
   }
 }
-// MODAL Mağaza aç/kapat
 document.getElementById("magaza-btn").onclick = () => {
   updateMagazaUI();
   document.getElementById("modal-magaza").style.display="flex";
@@ -375,7 +369,6 @@ document.getElementById("close-magaza").onclick = () => {
   document.getElementById("modal-magaza").style.display="none";
 };
 
-// Alt butonlar
 document.getElementById("gorevler-btn").onclick = () => alert("Görevler gösterilecek!");
 document.getElementById("ayarlar-btn").onclick = () => alert("Ayarlar menüsü!");
 
