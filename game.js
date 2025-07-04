@@ -1,380 +1,312 @@
-// Stoklar ve binalar için resim linki kısa tutmak için
-const PRODUCT_LIST = [
-  {id:"wheat", name:"Buğday",    img:"21.png", sell:5},
-  {id:"flour", name:"Un",        img:"12.png", sell:10},
-  {id:"water", name:"Su",        img:"20.png", sell:7},
-  {id:"bread", name:"Ekmek",     img:"9.png", sell:30},
-  {id:"bretzel", name:"Bretzel", img:"11.png", sell:60},
-  {id:"cookie", name:"Cookie",   img:"10.png", sell:100}
+// ---- OYUN DEĞİŞKENLERİ
+let durum = {
+  coin: 100, energy: 100, gem: 100, depot: {},
+  slotlar: [null,null,null,null,null,null,null,null,null],
+  // slot tipi: {type: "tarla"|"firin"|"degirmen"|"sukuyusu", ... }
+  suKuyusu: { su:0, last:Date.now() },
+  gorev: { hasat:0, ekmek:0, su:0, odulAldi:false }
+};
+// --- ÜRÜN BİLGİLERİ
+let urunler = [
+  { ad:"Buğday", key:"bugday", sprite:"21.png", grow:30, fiyat:5 }
 ];
-let depot = { wheat: 0, flour:0, water:0, bread:0, bretzel:0, cookie:0 };
-let energy = 70;
-let money = 2500;
-let diamonds = 10;
-
-// Tarlalar ve binalar (bina iconları başta siyah beyaz!)
-let fields = [];
-const FIELD_MAX = 4;
-let buildings = [
-  {id: "well", name:"Su Kuyusu", img: "23.png", color: "23.png", gray:"23.png", price:100, owned:false, x:null, y:null, container:null},
-  {id: "mill", name:"Değirmen",  img: "24.png", color: "24.png", gray:"24.png", price:150, owned:false, x:null, y:null, container:null},
-  {id: "oven", name:"Fırın",     img: "22.png", color: "22.png", gray:"22.png", price:200, owned:false, x:null, y:null, container:null}
-];
-
-// Üst bar güncelle
-const topBar = {
-  money: document.getElementById("money-amount"),
-  energy: document.getElementById("energy-amount"),
-  diamond: document.getElementById("diamond-amount"),
-};
-function updateBar() {
-  topBar.money.textContent = money;
-  topBar.energy.textContent = energy;
-  topBar.diamond.textContent = diamonds;
+// --- BAŞLANGIÇTA 1 TARLA
+durum.slotlar[0] = {type:"tarla", durum:"empty", time:0, crop:null};
+// --- ARAYÜZ & BAR
+function updateBar(){
+  document.getElementById("coin").innerText = durum.coin;
+  document.getElementById("energy").innerText = durum.energy;
+  document.getElementById("gem").innerText = durum.gem;
 }
-
-// Animasyon
-function showAnim(type, amount, icon) {
-  const animDiv = document.createElement("div");
-  animDiv.className = "floating-anim";
-  animDiv.innerHTML = `<img src="${icon}" alt="">${amount > 0 ? "+" : ""}${amount}`;
-  let x = window.innerWidth / 2 - 30 + Math.random()*15;
-  let y = 120 + Math.random()*24;
-  animDiv.style.left = `${x}px`;
-  animDiv.style.top = `${y}px`;
-  document.getElementById("floating-animations").appendChild(animDiv);
-  setTimeout(() => animDiv.remove(), 1100);
-}
-
-// Field Spawner
-function randomFieldPos() {
-  const pad = 8;
-  const area = document.getElementById("field-area");
-  const w = area.offsetWidth || window.innerWidth;
-  const h = area.offsetHeight || (window.innerHeight-120);
-  let tries = 16;
-  while (tries--) {
-    let x = pad + Math.random() * (w-160-pad);
-    let y = 18 + Math.random() * (h-170-pad);
-    let clash = fields.concat(buildings).some(f => f.x!==null && Math.abs(f.x-x) < 120 && Math.abs(f.y-y) < 120);
-    if (!clash) return {x, y};
-  }
-  return {x: pad+Math.random()*(w-150-pad), y: 30+Math.random()*(h-130-pad)};
-}
-
-// Tarla oluşturma
-function createField(initPos) {
-  let field = {
-    state: "empty",
-    timer: null,
-    timePassed: 0,
-    container: null,
-    x: initPos.x,
-    y: initPos.y
-  };
-  const area = document.getElementById("field-area");
-  const cont = document.createElement("div");
-  cont.className = "field-container";
-  cont.style.left = `${initPos.x}px`;
-  cont.style.top  = `${initPos.y}px`;
-  const img = document.createElement("img");
-  img.className = "field-img";
-  img.src = "1.png";
-  cont.appendChild(img);
-
-  // Action icons
-  const act = document.createElement("div");
-  act.className = "action-icons";
-  act.style.display = "none";
-  // Tohum ve orak (saydam, büyük)
-  const seedBtn = document.createElement("button");
-  seedBtn.innerHTML = `<img src="17.png" alt="Tohum" draggable="false">`;
-  const sickleBtn = document.createElement("button");
-  sickleBtn.innerHTML = `<img src="19.png" alt="Orak" draggable="false">`;
-  act.appendChild(seedBtn);
-  act.appendChild(sickleBtn);
-  cont.appendChild(act);
-
-  // Drag
-  let isDragging = false, dragTimeout = null, dragOffset = {x:0,y:0};
-  function onPointerDown(e) {
-    if (field.state !== "empty") return;
-    dragTimeout = setTimeout(() => {
-      isDragging = true;
-      cont.classList.add("dragging");
-      const rect = cont.getBoundingClientRect();
-      let clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      let clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      dragOffset.x = clientX - rect.left;
-      dragOffset.y = clientY - rect.top;
-    }, 320);
-  }
-  function onPointerMove(e) {
-    if (!isDragging) return;
-    e.preventDefault();
-    let x = e.touches ? e.touches[0].clientX : e.clientX;
-    let y = e.touches ? e.touches[0].clientY : e.clientY;
-    cont.style.position = "fixed";
-    cont.style.zIndex = "233";
-    cont.style.left = (x - dragOffset.x) + "px";
-    cont.style.top = (y - dragOffset.y) + "px";
-  }
-  function onPointerUp(e) {
-    clearTimeout(dragTimeout);
-    if (isDragging) {
-      cont.classList.remove("dragging");
-      cont.style.position = "absolute";
-      let nx = Math.max(12, Math.min(window.innerWidth-225, parseInt(cont.style.left)));
-      let ny = Math.max(22, Math.min(window.innerHeight-320, parseInt(cont.style.top)));
-      cont.style.left = nx + "px";
-      cont.style.top  = ny + "px";
-      field.x = nx; field.y = ny;
-      cont.style.zIndex = "";
-      isDragging = false;
-    }
-  }
-  img.addEventListener("touchstart", onPointerDown);
-  img.addEventListener("mousedown", onPointerDown);
-  window.addEventListener("touchmove", onPointerMove, {passive:false});
-  window.addEventListener("mousemove", onPointerMove);
-  window.addEventListener("touchend", onPointerUp);
-  window.addEventListener("mouseup", onPointerUp);
-
-  // Tık: Action ikonlarını aç
-  function showActions() {
-    if(field.state==="growing"||field.state==="growing2") return;
-    act.style.display="flex";
-    setTimeout(()=>{act.style.display="none";}, 3800);
-  }
-  img.addEventListener("click", showActions);
-  img.addEventListener("touchend", function(e){
-    if(e.touches && e.touches.length>0) return;
-    showActions();
+// ---- SLOT ÇİZ (Drag & Drop)
+function renderSlots(){
+  let alan = document.getElementById("slot-area"); alan.innerHTML = "";
+  durum.slotlar.forEach((s, i)=>{
+    alan.innerHTML += `
+    <div class="slot" data-slot="${i}">
+      ${s ? binaHtml(s,i) : ""}
+    </div>`;
   });
-
-  // Tohum ekme
-  seedBtn.onclick = function(e){
-    e.stopPropagation();
-    if(field.state!=="empty" || field.timer) return;
-    if(energy<1||money<1) { alert("Yetersiz enerji/para!"); return; }
-    energy--; money--;
-    updateBar();
-    showAnim("energy", "-1", "14.png");
-    showAnim("money", "-1", "15.png");
-    field.state = "growing";
-    img.src = "2.png";
-    act.style.display="none";
-    field.timePassed = 0;
-    field.timer = setTimeout(()=>{
-      field.state="growing2"; img.src="3.png";
-      field.timer = setTimeout(()=>{
-        field.state="ready";
-        img.src="4.png";
-        field.timer=null;
-      },15000);
-    },15000);
-  };
-  // Orak
-  sickleBtn.onclick = function(e){
-    e.stopPropagation();
-    if(field.state!=="ready") return;
-    if(energy<1) { alert("Yetersiz enerji!"); return; }
-    energy--;
-    updateBar();
-    showAnim("energy", "-1", "14.png");
-    depot.wheat+=2;
-    showAnim("wheat", "+2", "21.png");
-    field.state="empty";
-    img.src="1.png";
-    act.style.display="none";
-    updateDepotUI();
-  };
-
-  area.appendChild(cont);
-  field.container = cont;
-  return field;
-}
-
-// Bina oluşturma (değirmen, su kuyusu, fırın)
-function createBuilding(build) {
-  if(build.container) return build;
-  const area = document.getElementById("field-area");
-  let b = build;
-  let {x, y} = b.x!=null && b.y!=null ? b : randomFieldPos();
-  b.x = x; b.y = y;
-  const cont = document.createElement("div");
-  cont.className = "building-container";
-  cont.style.left = `${x}px`;
-  cont.style.top  = `${y}px`;
-  const img = document.createElement("img");
-  img.className = "building-img";
-  img.src = b.owned ? b.color : b.gray;
-  if(!b.owned) img.classList.add("grayscale");
-  else img.classList.add("owned");
-  cont.appendChild(img);
-
-  // Fiyat etiketi / satın alma
-  let priceTag = null;
-  function showPriceTag() {
-    if(b.owned) return;
-    if(priceTag) priceTag.remove();
-    priceTag = document.createElement("div");
-    priceTag.className = "price-tag";
-    priceTag.innerHTML = `${b.price} <img src="15.png" style="width:30px;height:30px;margin-left:3px;">
-      <button class="price-buy-btn">Satın Al</button>`;
-    priceTag.querySelector("button").onclick = function(e){
-      e.stopPropagation();
-      if(money<b.price){alert("Yetersiz para!");return;}
-      money-=b.price; updateBar();
-      b.owned=true;
-      img.classList.remove("grayscale"); img.classList.add("owned");
-      img.src = b.color;
-      if(priceTag) priceTag.remove();
-      showAnim("money", `-${b.price}`, "15.png");
-    };
-    cont.appendChild(priceTag);
-    setTimeout(()=>{if(priceTag) priceTag.remove();}, 4000);
-  }
-
-  // Drag
-  let isDragging = false, dragTimeout = null, dragOffset = {x:0,y:0};
-  function onPointerDown(e) {
-    dragTimeout = setTimeout(() => {
-      isDragging = true;
-      cont.classList.add("dragging");
-      const rect = cont.getBoundingClientRect();
-      let clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      let clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      dragOffset.x = clientX - rect.left;
-      dragOffset.y = clientY - rect.top;
-    }, 310);
-  }
-  function onPointerMove(e) {
-    if (!isDragging) return;
-    e.preventDefault();
-    let x = e.touches ? e.touches[0].clientX : e.clientX;
-    let y = e.touches ? e.touches[0].clientY : e.clientY;
-    cont.style.position = "fixed";
-    cont.style.zIndex = "237";
-    cont.style.left = (x - dragOffset.x) + "px";
-    cont.style.top = (y - dragOffset.y) + "px";
-  }
-  function onPointerUp(e) {
-    clearTimeout(dragTimeout);
-    if (isDragging) {
-      cont.classList.remove("dragging");
-      cont.style.position = "absolute";
-      let nx = Math.max(12, Math.min(window.innerWidth-225, parseInt(cont.style.left)));
-      let ny = Math.max(22, Math.min(window.innerHeight-320, parseInt(cont.style.top)));
-      cont.style.left = nx + "px";
-      cont.style.top  = ny + "px";
-      b.x = nx; b.y = ny;
-      cont.style.zIndex = "";
-      isDragging = false;
-    }
-  }
-  img.addEventListener("touchstart", onPointerDown);
-  img.addEventListener("mousedown", onPointerDown);
-  window.addEventListener("touchmove", onPointerMove, {passive:false});
-  window.addEventListener("mousemove", onPointerMove);
-  window.addEventListener("touchend", onPointerUp);
-  window.addEventListener("mouseup", onPointerUp);
-
-  // Tık: Fiyat etiketi aç (satın alınmadıysa)
-  function showPrice() {
-    if(!b.owned) showPriceTag();
-  }
-  img.addEventListener("click", showPrice);
-  img.addEventListener("touchend", function(e){
-    if(e.touches && e.touches.length>0) return;
-    showPrice();
+  // Drag eventi için hazırlık
+  Array.from(document.querySelectorAll(".bina")).forEach(el=>{
+    el.ondragstart = e => {e.preventDefault();};
+    dragHandler(el);
   });
-
-  area.appendChild(cont);
-  b.container = cont;
-  return b;
 }
-
-// Alanı temizle ve tarlaları + binaları göster
-function renderFields() {
-  let area = document.getElementById("field-area");
-  area.innerHTML = "";
-  buildings.forEach(b=>createBuilding(b));
-  fields.forEach(f=>area.appendChild(f.container));
-}
-
-// MODAL LOGIC (Depo)
-function updateDepotUI(){
-  const depoList = document.getElementById("depo-list");
-  depoList.innerHTML = "";
-  PRODUCT_LIST.forEach(pr=>{
-    if(depot[pr.id]>0){
-      const row = document.createElement("div");
-      row.className="depo-item";
-      row.innerHTML = `<img src="${pr.img}"><span class="depo-item-name">${pr.name}</span><span class="depo-item-count" id="depo-count-${pr.id}">${depot[pr.id]}</span>
-      <button class="depo-sell-btn" id="sell-${pr.id}">Sat (+${pr.sell})</button>`;
-      depoList.appendChild(row);
-      row.querySelector(`#sell-${pr.id}`).onclick = function(){
-        depot[pr.id]--;
-        money+=pr.sell;
-        showAnim("money", `+${pr.sell}`, "15.png");
-        updateBar();
-        updateDepotUI();
-      };
-    }
-  });
-  if(depoList.innerHTML==="") depoList.innerHTML = "<div>Depoda ürün yok.</div>";
-}
-document.getElementById("depo-btn").onclick = () => {
-  updateDepotUI();
-  document.getElementById("modal-depo").style.display="flex";
-};
-document.getElementById("close-depo").onclick = () => {
-  document.getElementById("modal-depo").style.display="none";
-};
-
-// MODAL LOGIC (Mağaza)
-function updateMagazaUI(){
-  const magazaList = document.getElementById("magaza-list");
-  magazaList.innerHTML = "";
-  if(fields.length<FIELD_MAX){
-    const row = document.createElement("div");
-    row.className="magaza-item";
-    row.innerHTML = `<img src="1.png"><span class="depo-item-name">Yeni Tarla</span><span class="depo-item-count">50</span>
-    <button class="magaza-item-btn" id="buy-field">Satın Al</button>`;
-    magazaList.appendChild(row);
-    row.querySelector("#buy-field").onclick = function(){
-      if(money<50){
-        alert("Yetersiz para!");
-        return;
+// -- Drag/Drop/Longtouch fonksiyonları
+let dragObj = null, dragIdx = null;
+function dragHandler(el){
+  let t0, moved=false, slotIndex = +el.dataset.idx;
+  el.onmousedown = el.ontouchstart = function(ev){
+    t0 = Date.now(); moved=false;
+    let timeout = setTimeout(()=>{
+      dragObj = el; dragIdx=slotIndex;
+      el.classList.add("dragging");
+      document.body.style.cursor="grabbing";
+    },250);
+    function move(e){
+      if(dragObj){
+        moved = true;
+        let touch = e.touches?e.touches[0]:e;
+        dragObj.style.position="fixed";
+        dragObj.style.pointerEvents="none";
+        dragObj.style.left = (touch.clientX-80)+"px";
+        dragObj.style.top  = (touch.clientY-40)+"px";
       }
-      money-=50;
-      showAnim("money", "-50", "15.png");
-      updateBar();
-      const pos = randomFieldPos();
-      let f = createField(pos);
-      fields.push(f);
-      renderFields();
-      updateMagazaUI();
-    };
-  } else {
-    magazaList.innerHTML = "<div>En fazla 4 tarla sahibi olabilirsin!</div>";
+    }
+    function up(e){
+      clearTimeout(timeout);
+      if(dragObj){
+        dragObj.classList.remove("dragging");
+        dragObj.style.position="";
+        dragObj.style.left=dragObj.style.top="";
+        document.body.style.cursor="";
+        let elem = document.elementFromPoint(
+          (e.changedTouches?e.changedTouches[0]:e).clientX,
+          (e.changedTouches?e.changedTouches[0]:e).clientY
+        );
+        let slotDiv = elem.closest(".slot");
+        if(slotDiv){
+          let target = +slotDiv.dataset.slot;
+          let temp = durum.slotlar[target];
+          durum.slotlar[target]=durum.slotlar[dragIdx];
+          durum.slotlar[dragIdx]=temp;
+          renderSlots();
+        }
+        dragObj=null;
+      }
+      window.removeEventListener("mousemove",move);
+      window.removeEventListener("touchmove",move);
+      window.removeEventListener("mouseup",up);
+      window.removeEventListener("touchend",up);
+    }
+    window.addEventListener("mousemove",move);
+    window.addEventListener("touchmove",move);
+    window.addEventListener("mouseup",up);
+    window.addEventListener("touchend",up);
   }
 }
-document.getElementById("magaza-btn").onclick = () => {
-  updateMagazaUI();
-  document.getElementById("modal-magaza").style.display="flex";
+// -- Bina kutu içeriği
+function binaHtml(s,idx){
+  if(s.type==="tarla"){
+    let img = "1.png";
+    if(s.durum==="growing") img = (s.time<15)?"2.png":"3.png";
+    if(s.durum==="ready") img="4.png";
+    let action = "";
+    if(s.durum==="empty")
+      action = `<img src="17.png" class="action-btn" onclick="tarlaEkim(${idx})" title="Tohum ek">`;
+    if(s.durum==="ready")
+      action = `<img src="19.png" class="action-btn" onclick="tarlaHasat(${idx})" title="Hasat et">`;
+    return `<div class="bina" data-idx="${idx}">
+      <img src="${img}" class="bina-img">
+      <div class="actions">${action}</div>
+      <div class="timer">${
+        s.durum==="growing"?`<img src="21.png"> <small>${30-s.time}s</small>`:""
+      }${s.durum==="ready"?`<img src="21.png"> <small>Hazır!</small>`:""}</div>
+    </div>`;
+  }
+  if(s.type==="firin"){
+    return `<div class="bina" data-idx="${idx}">
+      <img src="22.png" class="bina-img">
+      <div class="actions"><img src="10.png" class="action-btn" onclick="firinPanel()" title="Ekmek üret"></div>
+    </div>`;
+  }
+  if(s.type==="degirmen"){
+    return `<div class="bina" data-idx="${idx}">
+      <img src="24.png" class="bina-img">
+      <div class="actions"><img src="11.png" class="action-btn" onclick="degirmenPanel()" title="Un üret"></div>
+    </div>`;
+  }
+  if(s.type==="sukuyusu"){
+    return `<div class="bina" data-idx="${idx}">
+      <img src="23.png" class="bina-img">
+      <div class="actions"><img src="20.png" class="action-btn" onclick="wellPanel()" title="Su toplama"></div>
+    </div>`;
+  }
+}
+// --- TARLA Fonksiyonları
+window.tarlaEkim = function(idx){
+  if(durum.energy<1) return alert("Yeterli enerji yok!");
+  durum.energy -= 1;
+  durum.slotlar[idx] = {type:"tarla", durum:"growing", time:0, crop:"bugday"};
+  updateBar(); renderSlots();
+}
+window.tarlaHasat = function(idx){
+  durum.slotlar[idx] = {type:"tarla", durum:"empty", time:0, crop:null};
+  durum.depot["Buğday"]=(durum.depot["Buğday"]||0)+1;
+  durum.gorev.hasat++;
+  updateBar(); renderSlots();
+  checkGorev();
+}
+// --- SU KUYUSU
+window.wellPanel = function(){
+  let su = durum.suKuyusu.su;
+  let buton = `<button ${su==0?"disabled":""} onclick="suTopla()">Su Topla</button>`;
+  let info = `<div class='well-panel'><img src='23.png'> <b>Su Kuyusu</b> <br>
+  <small>Biriken Su: <b>${su}/10</b> (30sn'de 1 su)</small><br>${buton}</div>`;
+  modalGoster(info);
+}
+window.suTopla = function(){
+  let su = durum.suKuyusu.su;
+  if(su>0){
+    durum.depot["Su"] = (durum.depot["Su"]||0) + su;
+    durum.gorev.su += su;
+    durum.suKuyusu.su = 0;
+    wellPanel();
+    checkGorev();
+  }
+}
+// --- DEĞİRMEN
+window.degirmenPanel = function(){
+  let bugday = durum.depot["Buğday"]||0, un = durum.depot["Un"]||0;
+  let buton = `<button ${(bugday<1||durum.energy<1)?"disabled":""} onclick="unUret()">Un Üret (1 <img src='21.png'>, 1 <img src='14.png'>)</button>`;
+  let info = `<div style='padding:7px;'><img src='24.png'> <b>Değirmen</b><br>
+  <small>1 Buğday + 1 Enerji = 1 Un</small><br>${buton}<br>
+  Depo: <img src='21.png'>${bugday} <img src='12.png'>${un}</div>`;
+  modalGoster(info);
+}
+window.unUret = function(){
+  if((durum.depot["Buğday"]||0)<1||durum.energy<1) return;
+  durum.depot["Buğday"]-=1;
+  durum.depot["Un"] = (durum.depot["Un"]||0)+1;
+  durum.energy -= 1;
+  degirmenPanel(); updateBar();
+  checkGorev();
+}
+// --- FIRIN
+window.firinPanel = function(){
+  let un = durum.depot["Un"]||0, su = durum.depot["Su"]||0, ekmek = durum.depot["Ekmek"]||0;
+  let buton = `<button ${(un<1||su<1||durum.energy<1)?"disabled":""} onclick="ekmekUret()">Ekmek Üret (1 <img src='12.png'> 1 <img src='20.png'> 1 <img src='14.png'>)</button>`;
+  let info = `<div style='padding:7px;'><img src='22.png'> <b>Fırın</b><br>
+  <small>1 Un + 1 Su + 1 Enerji = 1 Ekmek</small><br>${buton}<br>
+  Depo: <img src='12.png'>${un} <img src='20.png'>${su} <img src='9.png'>${ekmek}</div>`;
+  modalGoster(info);
+}
+window.ekmekUret = function(){
+  if((durum.depot["Un"]||0)<1||(durum.depot["Su"]||0)<1||durum.energy<1) return;
+  durum.depot["Un"]-=1; durum.depot["Su"]-=1;
+  durum.depot["Ekmek"]=(durum.depot["Ekmek"]||0)+1;
+  durum.energy -= 1;
+  durum.gorev.ekmek++;
+  firinPanel(); updateBar();
+  checkGorev();
+}
+// --- MAĞAZA
+document.getElementById("magazaBtn").onclick = function() {
+  let magazaHTML = `
+  <div class="magaza-list">
+    <div class="magaza-item">
+      <img src="1.png"><b>Tarla</b>
+      <button onclick="satinal('tarla')">10 <img src='15.png' style='width:14px;vertical-align:middle'></button>
+    </div>
+    <div class="magaza-item">
+      <img src="22.png"><b>Fırın</b>
+      <button onclick="satinal('firin')">40 <img src='15.png' style='width:14px;vertical-align:middle'></button>
+    </div>
+    <div class="magaza-item">
+      <img src="24.png"><b>Değirmen</b>
+      <button onclick="satinal('degirmen')">30 <img src='15.png' style='width:14px;vertical-align:middle'></button>
+    </div>
+    <div class="magaza-item">
+      <img src="23.png"><b>Su Kuyusu</b>
+      <button onclick="satinal('sukuyusu')">20 <img src='15.png' style='width:14px;vertical-align:middle'></button>
+    </div>
+  </div>`;
+  modalGoster("<h3>Mağaza</h3>" + magazaHTML);
 };
-document.getElementById("close-magaza").onclick = () => {
-  document.getElementById("modal-magaza").style.display="none";
+// Satın alma fonksiyonu (KAYBOLMA HATASIZ!)
+window.satinal = function(ne) {
+  let fiyat = { "tarla":10, "firin":40, "degirmen":30, "sukuyusu":20 }[ne];
+  if(durum.coin < fiyat) { alert("Yeterli paran yok!"); return; }
+  durum.coin -= fiyat;
+  let idx = durum.slotlar.findIndex(x=>x===null);
+  if(idx<0){ alert("Daha fazla alan yok!"); return; }
+  if(ne==="tarla") durum.slotlar[idx]={type:"tarla", durum:"empty", time:0, crop:null};
+  if(ne==="firin") durum.slotlar[idx]={type:"firin"};
+  if(ne==="degirmen") durum.slotlar[idx]={type:"degirmen"};
+  if(ne==="sukuyusu") durum.slotlar[idx]={type:"sukuyusu"};
+  updateBar(); renderSlots(); modalKapat();
+}
+// --- DEPO (ÜRÜN SAT)
+document.getElementById("depoBtn").onclick = function() {
+  let depoHTML = `<h3>Depo</h3><div class="depo-list">`;
+  let dep = durum.depot;
+  let satF = function(ad,fiyat){
+    return `<button onclick="urunSat('${ad}',${fiyat})">Sat (${fiyat} <img src='15.png' style='width:13px;vertical-align:middle'>)</button>`;
+  };
+  let varMi = false;
+  Object.keys(dep).forEach(ad=>{
+    if(dep[ad]>0){
+      varMi=true;
+      let spr = (ad=="Buğday"?"21.png":ad=="Un"?"12.png":ad=="Ekmek"?"9.png":ad=="Su"?"20.png":"");
+      let fiyat = ad=="Buğday"?5:ad=="Un"?18:ad=="Ekmek"?35:ad=="Su"?3:1;
+      depoHTML += `<div class="depo-item"><img src="${spr}">${ad} <b>x${dep[ad]}</b> ${satF(ad,fiyat)}</div>`;
+    }
+  });
+  if(!varMi) depoHTML += `<div style="opacity:.75; font-size:.98em;">Depo boş</div>`;
+  depoHTML += "</div>";
+  modalGoster(depoHTML);
 };
-
-document.getElementById("gorevler-btn").onclick = () => alert("Görevler gösterilecek!");
-document.getElementById("ayarlar-btn").onclick = () => alert("Ayarlar menüsü!");
-
-// BAŞLANGIÇ
-updateBar();
-fields.push(createField({x:window.innerWidth/2-110, y:window.innerHeight/2-160}));
-renderFields();
-
-window.addEventListener("resize",()=>renderFields());
+window.urunSat = function(ad,fiyat){
+  if(!durum.depot[ad]||durum.depot[ad]<1) return;
+  durum.depot[ad]-=1;
+  durum.coin+=fiyat;
+  updateBar();
+  document.getElementById("depoBtn").click();
+  if(ad=="Su") durum.gorev.su++; // görev sayacı
+  checkGorev();
+}
+// -- GÖREVLER --
+document.getElementById("gorevBtn").onclick = function(){
+  let g = durum.gorev, bitti = g.hasat>=3 && g.ekmek>=2 && g.su>=5 && !g.odulAldi;
+  let gorevHTML = `<h3>Görevler</h3>
+  <div class="gorevler-list">
+    <div class="gorev-kutu">${g.hasat>=3?'<span class="gorev-done">✓</span>':'🟩'} 3 kez hasat yap (${g.hasat}/3)</div>
+    <div class="gorev-kutu">${g.ekmek>=2?'<span class="gorev-done">✓</span>':'🟩'} 2 ekmek üret (${g.ekmek}/2)</div>
+    <div class="gorev-kutu">${g.su>=5?'<span class="gorev-done">✓</span>':'🟩'} 5 su sat (${g.su}/5)</div>
+  </div>
+  ${bitti?`<button class="gorev-buton" id="gorevOdul">200 <img src='15.png' style='width:13px;vertical-align:middle'> Ödülü Al</button>`:""}
+  `;
+  modalGoster(gorevHTML);
+  if(bitti){
+    document.getElementById("gorevOdul").onclick = function(){
+      durum.coin+=200; durum.gorev.odulAldi=true; updateBar(); modalKapat();
+    }
+  }
+}
+document.getElementById("ayarBtn").onclick = ()=>modalGoster("<img src='18.png'><h3>Ayarlar</h3><div>Ayarlar yakında aktif olacak.</div>");
+// --- SU KUYUSU TIMER
+setInterval(function(){
+  let idx = durum.slotlar.findIndex(s=>s && s.type==="sukuyusu");
+  if(idx>=0){
+    let now = Date.now();
+    let delta = Math.floor((now - durum.suKuyusu.last)/1000);
+    if(delta >= 30 && durum.suKuyusu.su < 10) {
+      let ekle = Math.min(Math.floor(delta/30), 10-durum.suKuyusu.su);
+      durum.suKuyusu.su += ekle;
+      durum.suKuyusu.last = now - ((delta%30)*1000);
+    }
+  }
+},1000);
+// --- TARLA BÜYÜME TIMER
+setInterval(function(){
+  durum.slotlar.forEach((s,i)=>{
+    if(s && s.type=="tarla" && s.durum=="growing"){
+      s.time+=1;
+      if(s.time>=30){ s.durum="ready"; }
+    }
+  });
+  renderSlots();
+},1000);
+// --- Görev tamamlamasını her önemli aksiyonda çağır!
+function checkGorev(){ }
+// --- BAŞLANGIÇ
+renderSlots(); updateBar();
+// --- MODAL sistemi
+function modalGoster(html) {
+  document.getElementById("modalContent").innerHTML = html;
+  document.getElementById("modalbg").style.display="flex";
+}
+function modalKapat() {
+  document.getElementById("modalbg").style.display="none";
+}
