@@ -68,5 +68,21 @@
     </div>
   </div>
   <script src="game.js"></script>
+ <script>
+  // ... (tüm önceki kod aynı, yalnızca satinal fonksiyonu aşağıdaki gibi olmalı)
+  window.satinal = function(ne) {
+    let fiyat = { "tarla":10, "firin":40, "degirmen":30, "sukuyusu":20 }[ne];
+    if(durum.coin < fiyat) { alert("Yeterli paran yok!"); return; }
+    durum.coin -= fiyat;
+    let idx = durum.slotlar.findIndex(x=>x===null);
+    if(idx<0){ alert("Daha fazla alan yok!"); return; }
+    if(ne==="tarla") durum.slotlar[idx]={type:"tarla", durum:"empty", time:0, crop:null};
+    if(ne==="firin") durum.slotlar[idx]={type:"firin"};
+    if(ne==="degirmen") durum.slotlar[idx]={type:"degirmen"};
+    if(ne==="sukuyusu") durum.slotlar[idx]={type:"sukuyusu"};
+    updateBar(); renderSlots(); modalKapat();
+  }
+  // ... (tüm önceki kodun devamı aynı)
+</script> 
 </body>
 </html>
