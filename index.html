@@ -48,7 +48,6 @@
     .bina-img {
       width:120px; height:88px; object-fit:contain; display:block; background:none; border-radius:13px;
       border:none; pointer-events:none;
-      /* dokunarak büyütmeyi engelle */
       -webkit-user-drag: none;
     }
     .actions {
@@ -355,17 +354,50 @@
       </div>`;
       modalGoster("<h3>Mağaza</h3>" + magazaHTML);
     };
+
+    // HATA GİDERİLMİŞ TARLA OLUŞTURMA KODU
     window.satinal = function(ne) {
-      let fiyat = { "tarla":10, "firin":40, "degirmen":30, "sukuyusu":20 }[ne];
+      let fiyatlar = { "tarla":10, "firin":40, "degirmen":30, "sukuyusu":20 };
+      let fiyat = fiyatlar[ne];
       if(durum.coin < fiyat) { alert("Yeterli paran yok!"); return; }
       durum.coin -= fiyat;
       let pos = { x: 70 + Math.random()*200, y: 80 + Math.random()*150 };
-      if(ne==="tarla") durum.items.push({type:"tarla", durum:"empty", time:0, crop:null, ...pos});
-      if(ne==="firin") durum.items.push({type:"firin", ...pos});
-      if(ne==="degirmen") durum.items.push({type:"degirmen", ...pos});
-      if(ne==="sukuyusu") durum.items.push({type:"sukuyusu", ...pos});
-      updateBar(); renderItems(); modalKapat();
-    }
+      if(ne === "tarla") {
+        durum.items.push({
+          type: "tarla",
+          durum: "empty",
+          time: 0,
+          crop: null,
+          x: pos.x,
+          y: pos.y
+        });
+      }
+      if(ne === "firin") {
+        durum.items.push({
+          type: "firin",
+          x: pos.x,
+          y: pos.y
+        });
+      }
+      if(ne === "degirmen") {
+        durum.items.push({
+          type: "degirmen",
+          x: pos.x,
+          y: pos.y
+        });
+      }
+      if(ne === "sukuyusu") {
+        durum.items.push({
+          type: "sukuyusu",
+          x: pos.x,
+          y: pos.y
+        });
+      }
+      updateBar();
+      renderItems();
+      modalKapat();
+    };
+
     document.getElementById("depoBtn").onclick = function() {
       let depoHTML = `<h3>Depo</h3><div class="depo-list">`;
       let dep = durum.depot;
