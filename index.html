@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
   <meta charset="UTF-8">
-  <title>Akıllı Çiftlik (Drag & Görevli)</title>
+  <title>Serbest Yerleşimli Çiftlik</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     html,body {margin:0;padding:0;}
@@ -26,54 +26,43 @@
       border: 1.3px solid #bbb7;
     }
     #top-bar img.icon { width:28px; height:28px; margin-right:2px; background:none; padding:0; border:none;}
-    #main-content {display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:68vh;}
-    #slot-area {
-      margin-top:34px;
-      display: flex; flex-wrap: wrap;
-      gap: 22px 22px; justify-content: center; align-items: center;
+    #farm-area {
+      position:relative;
+      min-height:70vh;
+      min-width:100vw;
+      margin-bottom:85px;
+      overflow:visible;
     }
-    .slot {
-      width: 170px; height: 130px; position:relative; display: flex; align-items:center; justify-content:center;
-      border: 2px dashed #c8d4b7;
-      background: transparent;
-      border-radius: 22px;
-      box-sizing: border-box;
-      transition: box-shadow .16s;
-      overflow: visible;
-    }
-    .slot.dragover {
-      border-color: #59c032;
-      background:rgba(200,255,186,0.16);
-      box-shadow:0 0 10px #77db7e80;
-    }
-    .slot .bina {
-      position:absolute; left:0; right:0; top:0; bottom:0; margin:auto;
-      display:flex; flex-direction:column; align-items:center; justify-content:center;
-      z-index:1; cursor:grab;
+    .item {
+      position:absolute; z-index:3;
+      transition:box-shadow .14s;
       user-select:none;
-      background:none;
-      border:none;
-      width:100%; height:100%;
-      transition:box-shadow .12s, opacity .15s;
-      opacity:1;
+      touch-action:none;
     }
-    .bina.dragging {
-      opacity:0.7; box-shadow:0 6px 34px #00ab3d22;
-      z-index:33;
+    .item.dragging {
+      z-index:100;
+      box-shadow:0 4px 25px #40e88880;
+      opacity:.77;
+      cursor:grabbing;
     }
     .bina-img {
       width:120px; height:88px; object-fit:contain; display:block; background:none; border-radius:13px;
-      border:none;
+      border:none; pointer-events:none;
+      /* dokunarak büyütmeyi engelle */
+      -webkit-user-drag: none;
     }
-    .bina .actions {
-      display:flex; gap:9px; margin-top:2px;
-      align-items:center; justify-content:center;
+    .actions {
+      display:flex; gap:7px; margin-top:3px; align-items:center; justify-content:center;
+      position:absolute; left:0; right:0; bottom:-34px; pointer-events: auto;
     }
-    .action-btn { width:29px; height:29px; cursor:pointer; opacity:0.97; transition:opacity .13s;}
+    .action-btn { width:28px; height:28px; cursor:pointer; opacity:0.97; transition:opacity .13s;}
     .action-btn:active {opacity:1;}
-    .timer {text-align:center; margin:2px 0 0 0; font-size:.96em; min-height:18px; color:#444;}
-    .timer img {width:16px; vertical-align:middle; margin-right:1px;}
-    small {font-size:0.91em; color:#666;}
+    .timer {
+      text-align:center; margin:2px 0 0 0; font-size:.93em; min-height:16px; color:#444; background:#fff8; border-radius:6px;
+      padding:1px 7px;
+      position:absolute; left:50%; transform:translateX(-50%); bottom:-23px;
+      pointer-events:none;
+    }
     #bottom-bar {
       position: fixed; bottom: 0; left: 0; right: 0;
       background: rgba(255,255,255,0.95); box-shadow: 0 -1px 12px #0001;
@@ -151,11 +140,8 @@
     #gorevOdul {margin-top:12px;}
     @keyframes popin {0%{transform:scale(.83); opacity:0;} 100%{transform:scale(1); opacity:1;}}
     @media (max-width:600px){
-      #slot-area { gap: 13px 8px;}
-      .slot { width: 96vw; max-width:175px; min-width:85px; height:110px;}
+      .item {width:80vw; height:65vw;}
       .bina-img { width:87vw; max-width:110px; height:59vw; max-height:70px;}
-      .modal { padding:7px 2vw;}
-      .magaza-item {max-width:97vw;}
     }
     body {padding-bottom:70px;}
   </style>
@@ -167,7 +153,7 @@
     <span><img src="13.png" class="icon" alt="Elmas"> <b id="gem">100</b></span>
   </div>
   <div id="main-content">
-    <div id="slot-area"></div>
+    <div id="farm-area"></div>
   </div>
   <div id="bottom-bar">
     <button class="bbtn" id="depoBtn"><img src="5.png"><span>Depo</span></button>
@@ -182,76 +168,96 @@
     </div>
   </div>
   <script>
-    // ---- OYUN DEĞİŞKENLERİ
+    // OYUN DEĞİŞKENLERİ
     let durum = {
       coin: 100, energy: 100, gem: 100, depot: {},
-      slotlar: [null,null,null,null,null,null,null,null,null],
+      items: [], // {type, x, y, ...}
       suKuyusu: { su:0, last:Date.now() },
       gorev: { hasat:0, ekmek:0, su:0, odulAldi:false }
     };
+    // Başlangıçta bir tarla ortada
+    durum.items.push({type:"tarla", durum:"empty", time:0, crop:null, x:140, y:160});
     let urunler = [
       { ad:"Buğday", key:"bugday", sprite:"21.png", grow:30, fiyat:5 }
     ];
-    durum.slotlar[0] = {type:"tarla", durum:"empty", time:0, crop:null};
+    // ARAYÜZ BAR
     function updateBar(){
       document.getElementById("coin").innerText = durum.coin;
       document.getElementById("energy").innerText = durum.energy;
       document.getElementById("gem").innerText = durum.gem;
     }
-    function renderSlots(){
-      let alan = document.getElementById("slot-area"); alan.innerHTML = "";
-      durum.slotlar.forEach((s, i)=>{
-        alan.innerHTML += `
-        <div class="slot" data-slot="${i}">
-          ${s ? binaHtml(s,i) : ""}
-        </div>`;
+    // EŞYALARI ÇİZ
+    function renderItems(){
+      let farm = document.getElementById("farm-area"); farm.innerHTML="";
+      durum.items.forEach((s, i)=>{
+        farm.innerHTML += itemHtml(s,i);
       });
-      Array.from(document.querySelectorAll(".bina")).forEach(el=>{
-        el.ondragstart = e => {e.preventDefault();};
-        dragHandler(el);
+      // Her item için drag fonk
+      durum.items.forEach((s,i)=>{
+        dragFreeHandler(document.getElementById("item-"+i), i);
       });
     }
-    let dragObj = null, dragIdx = null;
-    function dragHandler(el){
-      let t0, moved=false, slotIndex = +el.dataset.idx;
+    // HTML (bina, tarla, su kuyusu, fırın)
+    function itemHtml(s,idx){
+      let left = s.x, top = s.y;
+      if(s.type==="tarla"){
+        let img = "1.png";
+        if(s.durum==="growing") img = (s.time<15)?"2.png":"3.png";
+        if(s.durum==="ready") img="4.png";
+        let action = "";
+        if(s.durum==="empty")
+          action = `<img src="17.png" class="action-btn" onclick="tarlaEkim(${idx})" title="Tohum ek">`;
+        if(s.durum==="ready")
+          action = `<img src="19.png" class="action-btn" onclick="tarlaHasat(${idx})" title="Hasat et">`;
+        return `<div class="item" id="item-${idx}" style="left:${left}px;top:${top}px;">
+          <img src="${img}" class="bina-img">
+          <div class="actions">${action}</div>
+          <div class="timer">${
+            s.durum==="growing"?`<img src="21.png"> <small>${30-s.time}s</small>`:""
+          }${s.durum==="ready"?`<img src="21.png"> <small>Hazır!</small>`:""}</div>
+        </div>`;
+      }
+      if(s.type==="firin"){
+        return `<div class="item" id="item-${idx}" style="left:${left}px;top:${top}px;">
+          <img src="22.png" class="bina-img">
+          <div class="actions"><img src="10.png" class="action-btn" onclick="firinPanel()" title="Ekmek üret"></div>
+        </div>`;
+      }
+      if(s.type==="degirmen"){
+        return `<div class="item" id="item-${idx}" style="left:${left}px;top:${top}px;">
+          <img src="24.png" class="bina-img">
+          <div class="actions"><img src="11.png" class="action-btn" onclick="degirmenPanel()" title="Un üret"></div>
+        </div>`;
+      }
+      if(s.type==="sukuyusu"){
+        return `<div class="item" id="item-${idx}" style="left:${left}px;top:${top}px;">
+          <img src="23.png" class="bina-img">
+          <div class="actions"><img src="20.png" class="action-btn" onclick="wellPanel()" title="Su toplama"></div>
+        </div>`;
+      }
+    }
+    // Tamamen serbest drag: Mouse/touch X/Y ile
+    function dragFreeHandler(el, idx){
+      let startX=0, startY=0, offsetX=0, offsetY=0, dragging=false;
       el.onmousedown = el.ontouchstart = function(ev){
-        t0 = Date.now(); moved=false;
-        let timeout = setTimeout(()=>{
-          dragObj = el; dragIdx=slotIndex;
-          el.classList.add("dragging");
-          document.body.style.cursor="grabbing";
-        },250);
+        ev.preventDefault();
+        dragging=false;
+        let rect = el.getBoundingClientRect();
+        let evx = (ev.touches ? ev.touches[0].clientX : ev.clientX);
+        let evy = (ev.touches ? ev.touches[0].clientY : ev.clientY);
+        offsetX = evx - rect.left;
+        offsetY = evy - rect.top;
+        el.classList.add("dragging");
         function move(e){
-          if(dragObj){
-            moved = true;
-            let touch = e.touches?e.touches[0]:e;
-            dragObj.style.position="fixed";
-            dragObj.style.pointerEvents="none";
-            dragObj.style.left = (touch.clientX-80)+"px";
-            dragObj.style.top  = (touch.clientY-40)+"px";
-          }
+          let x = (e.touches?e.touches[0].clientX:e.clientX) - offsetX;
+          let y = (e.touches?e.touches[0].clientY:e.clientY) - offsetY;
+          durum.items[idx].x = Math.max(0, Math.min(window.innerWidth-120, x));
+          durum.items[idx].y = Math.max(0, Math.min(window.innerHeight-150, y));
+          renderItems();
+          dragging=true;
         }
         function up(e){
-          clearTimeout(timeout);
-          if(dragObj){
-            dragObj.classList.remove("dragging");
-            dragObj.style.position="";
-            dragObj.style.left=dragObj.style.top="";
-            document.body.style.cursor="";
-            let elem = document.elementFromPoint(
-              (e.changedTouches?e.changedTouches[0]:e).clientX,
-              (e.changedTouches?e.changedTouches[0]:e).clientY
-            );
-            let slotDiv = elem.closest(".slot");
-            if(slotDiv){
-              let target = +slotDiv.dataset.slot;
-              let temp = durum.slotlar[target];
-              durum.slotlar[target]=durum.slotlar[dragIdx];
-              durum.slotlar[dragIdx]=temp;
-              renderSlots();
-            }
-            dragObj=null;
-          }
+          el.classList.remove("dragging");
           window.removeEventListener("mousemove",move);
           window.removeEventListener("touchmove",move);
           window.removeEventListener("mouseup",up);
@@ -263,54 +269,18 @@
         window.addEventListener("touchend",up);
       }
     }
-    function binaHtml(s,idx){
-      if(s.type==="tarla"){
-        let img = "1.png";
-        if(s.durum==="growing") img = (s.time<15)?"2.png":"3.png";
-        if(s.durum==="ready") img="4.png";
-        let action = "";
-        if(s.durum==="empty")
-          action = `<img src="17.png" class="action-btn" onclick="tarlaEkim(${idx})" title="Tohum ek">`;
-        if(s.durum==="ready")
-          action = `<img src="19.png" class="action-btn" onclick="tarlaHasat(${idx})" title="Hasat et">`;
-        return `<div class="bina" data-idx="${idx}">
-          <img src="${img}" class="bina-img">
-          <div class="actions">${action}</div>
-          <div class="timer">${
-            s.durum==="growing"?`<img src="21.png"> <small>${30-s.time}s</small>`:""
-          }${s.durum==="ready"?`<img src="21.png"> <small>Hazır!</small>`:""}</div>
-        </div>`;
-      }
-      if(s.type==="firin"){
-        return `<div class="bina" data-idx="${idx}">
-          <img src="22.png" class="bina-img">
-          <div class="actions"><img src="10.png" class="action-btn" onclick="firinPanel()" title="Ekmek üret"></div>
-        </div>`;
-      }
-      if(s.type==="degirmen"){
-        return `<div class="bina" data-idx="${idx}">
-          <img src="24.png" class="bina-img">
-          <div class="actions"><img src="11.png" class="action-btn" onclick="degirmenPanel()" title="Un üret"></div>
-        </div>`;
-      }
-      if(s.type==="sukuyusu"){
-        return `<div class="bina" data-idx="${idx}">
-          <img src="23.png" class="bina-img">
-          <div class="actions"><img src="20.png" class="action-btn" onclick="wellPanel()" title="Su toplama"></div>
-        </div>`;
-      }
-    }
+    // Fonksiyonlar
     window.tarlaEkim = function(idx){
       if(durum.energy<1) return alert("Yeterli enerji yok!");
       durum.energy -= 1;
-      durum.slotlar[idx] = {type:"tarla", durum:"growing", time:0, crop:"bugday"};
-      updateBar(); renderSlots();
+      durum.items[idx] = { ...durum.items[idx], durum:"growing", time:0, crop:"bugday" };
+      updateBar(); renderItems();
     }
     window.tarlaHasat = function(idx){
-      durum.slotlar[idx] = {type:"tarla", durum:"empty", time:0, crop:null};
+      durum.items[idx] = { ...durum.items[idx], durum:"empty", time:0, crop:null };
       durum.depot["Buğday"]=(durum.depot["Buğday"]||0)+1;
       durum.gorev.hasat++;
-      updateBar(); renderSlots();
+      updateBar(); renderItems();
       checkGorev();
     }
     window.wellPanel = function(){
@@ -389,13 +359,12 @@
       let fiyat = { "tarla":10, "firin":40, "degirmen":30, "sukuyusu":20 }[ne];
       if(durum.coin < fiyat) { alert("Yeterli paran yok!"); return; }
       durum.coin -= fiyat;
-      let idx = durum.slotlar.findIndex(x=>x===null);
-      if(idx<0){ alert("Daha fazla alan yok!"); return; }
-      if(ne==="tarla") durum.slotlar[idx]={type:"tarla", durum:"empty", time:0, crop:null};
-      if(ne==="firin") durum.slotlar[idx]={type:"firin"};
-      if(ne==="degirmen") durum.slotlar[idx]={type:"degirmen"};
-      if(ne==="sukuyusu") durum.slotlar[idx]={type:"sukuyusu"};
-      updateBar(); renderSlots(); modalKapat();
+      let pos = { x: 70 + Math.random()*200, y: 80 + Math.random()*150 };
+      if(ne==="tarla") durum.items.push({type:"tarla", durum:"empty", time:0, crop:null, ...pos});
+      if(ne==="firin") durum.items.push({type:"firin", ...pos});
+      if(ne==="degirmen") durum.items.push({type:"degirmen", ...pos});
+      if(ne==="sukuyusu") durum.items.push({type:"sukuyusu", ...pos});
+      updateBar(); renderItems(); modalKapat();
     }
     document.getElementById("depoBtn").onclick = function() {
       let depoHTML = `<h3>Depo</h3><div class="depo-list">`;
@@ -444,7 +413,7 @@
     }
     document.getElementById("ayarBtn").onclick = ()=>modalGoster("<img src='18.png'><h3>Ayarlar</h3><div>Ayarlar yakında aktif olacak.</div>");
     setInterval(function(){
-      let idx = durum.slotlar.findIndex(s=>s && s.type==="sukuyusu");
+      let idx = durum.items.findIndex(s=>s && s.type==="sukuyusu");
       if(idx>=0){
         let now = Date.now();
         let delta = Math.floor((now - durum.suKuyusu.last)/1000);
@@ -456,16 +425,16 @@
       }
     },1000);
     setInterval(function(){
-      durum.slotlar.forEach((s,i)=>{
+      durum.items.forEach((s,i)=>{
         if(s && s.type=="tarla" && s.durum=="growing"){
           s.time+=1;
           if(s.time>=30){ s.durum="ready"; }
         }
       });
-      renderSlots();
+      renderItems();
     },1000);
     function checkGorev(){ }
-    renderSlots(); updateBar();
+    renderItems(); updateBar();
     function modalGoster(html) {
       document.getElementById("modalContent").innerHTML = html;
       document.getElementById("modalbg").style.display="flex";
